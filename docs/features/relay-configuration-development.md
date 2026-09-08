@@ -74,19 +74,19 @@ Launch `RelayMate.app`. The main window opens on a guided client-selection step 
 
 ## Beginner Distribution And GitHub Release
 
-- [ ] Add a reproducible macOS DMG builder that packages the current RelayMate app, includes an Applications alias, and presents the familiar drag-to-install Finder window. Verify the mounted image contents, volume layout, signature, plist, and executable architecture.
-- [ ] Replace the brief repository landing page with a Chinese-first beginner guide covering the product purpose, supported clients, prerequisites, installation, first launch, four-step setup, restart behavior, restoration, privacy, troubleshooting, development, and Windows status. Verify every documented action matches the current UI and runtime behavior.
-- [ ] Update macOS CI to build and validate the distributable DMG and upload it as the primary artifact. Verify workflow syntax and run the same package commands locally.
-- [ ] Perform final privacy, secret, repository-content, and release-artifact scans; initialize the public history without local build data or credentials. Verify the commit tree contains only intended files.
-- [ ] Create the public GitHub repository, push the verified source, publish the initial release with DMG and SHA-256 checksum, and verify the repository page and downloadable release assets through GitHub's API.
+- [x] Add a reproducible macOS DMG builder that packages the current RelayMate app, includes an Applications alias, and presents the familiar drag-to-install Finder window. Verified the mounted two-item icon view, Applications symlink, saved Finder layout, app signature, plist, and universal arm64/x86_64 executable on 2026-09-08.
+- [x] Replace the brief repository landing page with a Chinese-first beginner guide covering the product purpose, supported clients, prerequisites, installation, first launch, four-step setup, restart behavior, restoration, privacy, troubleshooting, development, and Windows status. Verified the Chinese and English pages against the current UI, saved-platform behavior, configuration paths, and Responses diagnostics.
+- [x] Update macOS CI to build and validate the distributable DMG and upload it as the primary artifact. Verified all workflow YAML parses and the same test, universal build, signing, DMG, and checksum commands pass locally.
+- [x] Perform final privacy, secret, repository-content, and release-artifact scans; initialize the public history without local build data or credentials. Verified Gitleaks reports no leaks, targeted source and binary scans return no personal paths or tokens, ignored local/build paths are absent from the commit tree, and public commit metadata uses a GitHub noreply address.
+- [x] Create the public GitHub repository, push the verified source, publish the initial release with DMG and SHA-256 checksum, and verify the repository page and downloadable release assets through GitHub's API. Verified the public `hwx61514/RelayMate` repository and `v1.0.0` release; the downloaded DMG matches the local SHA-256 exactly and passes `hdiutil verify`.
 
 ## Saved Relay Platforms
 
-- [ ] Store multiple named relay platforms with URL, API key, and separate Claude/Codex model selections in RelayMate's private application-support directory. Verify persistence, user-only file permissions, per-client selections, and update-in-place behavior.
-- [ ] Show saved platforms in the existing URL step, support new, select, rename, and delete actions, and keep deletion independent from active client configuration and original backups. Verify the rendered minimum-size window and confirmation copy.
-- [ ] Preserve a relay already detected in Claude or Codex standard configuration as a saved platform before another relay replaces the active values. Verify external active configurations remain selectable after switching.
-- [ ] Discover Codex provider tables as optional saved platforms without reading another manager's database or deleting and rewriting unrelated provider tables. Verify providers remain byte-for-byte unchanged unless the user explicitly selects historical-session redirection.
-- [ ] Re-run unit, isolated UI, package, DMG, privacy, and release checks before publishing.
+- [x] Store multiple named relay platforms with URL, API key, and separate Claude/Codex model selections in RelayMate's private application-support directory. Verified multiple-profile persistence, 0600 file permissions, per-client model restoration, and URL-matched updates with isolated stores.
+- [x] Show saved platforms in the existing URL step, support new, select, rename, and delete actions, and keep deletion independent from active client configuration and original backups. Verified the minimum-size native window, platform menu, auto-filled URL, masked restored key, enabled actions, and deletion isolation.
+- [x] Preserve a relay already detected in Claude or Codex standard configuration as a saved platform before another relay replaces the active values. Verified an external Claude configuration is saved with its URL, key, and model during normal startup without becoming RelayMate-managed.
+- [x] Discover Codex provider tables as optional saved platforms without reading another manager's database or deleting and rewriting unrelated provider tables. Verified discovery leaves provider bytes unchanged and historical providers remain unchecked until the user explicitly selects redirection.
+- [x] Re-run unit, isolated UI, package, DMG, privacy, and release checks before publishing. Verified 47 tests, isolated saved-platform UI, universal packaging, DMG mount/layout, valid ad-hoc signature, valid plist, matching release checksum, and zero Gitleaks findings on 2026-09-08.
 
 ## Open Source Preparation
 
@@ -113,10 +113,10 @@ Launch `RelayMate.app`. The main window opens on a guided client-selection step 
 ## Verification Record
 
 - Status: completed and verified on macOS, 2026-09-08.
-- `swift test --disable-sandbox`: 37 tests passed, 0 failures.
+- `swift test --disable-sandbox`: 47 tests passed, 0 failures.
 - Isolated native UI: external scan, no-baseline restore suppression, fresh model selection, apply, relaunch, managed-state detection, exact restore, and external-state recovery passed.
 - Client integration: the packaged RelayMate app normalized an entered `/v1` URL, then Claude Code 2.1.116 sent the selected model to `/v1/messages` and returned `OK`; Claude Desktop 1.46388.4 launched from `Claude-3p` in Gateway mode, displayed all 11 checked models with Claude Opus 5 as default, and returned `OK`; explicit 1M model metadata now round-trips through the wizard and Claude Desktop profile while unchecked and unmarked models stay unchanged; Codex 0.153.4 loaded the active owned provider, sent the configured model to `/v1/responses`, and loaded exactly the five enabled models from RelayMate's generated catalog.
-- Release package: `dist/RelayMate.app`, ad-hoc signature valid, `Info.plist` valid, arm64 executable, complete `.icns` rendered by Finder.
+- Release package: `dist/RelayMate.dmg`, SHA-256 verified, drag-to-Applications Finder layout verified, ad-hoc app signature valid, `Info.plist` valid, universal arm64/x86_64 executable, and complete `.icns` rendered by Finder.
 - Distribution limitation: the app is ad-hoc signed and has not been Apple Developer signed or notarized.
 
 ## Affected Layers
