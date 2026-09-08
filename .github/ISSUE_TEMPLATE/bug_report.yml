@@ -1,0 +1,43 @@
+name: Bug report
+description: Report reproducible RelayMate behavior without including credentials.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, complete configuration files, private relay URLs, or account screenshots.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Windows port development
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: RelayMate version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use example URLs and placeholder keys.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

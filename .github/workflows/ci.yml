@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test
+        run: swift test --disable-sandbox
+
+      - name: Package
+        run: scripts/package-dmg.sh
+
+      - name: Validate app bundle
+        run: |
+          codesign --verify --deep --strict dist/RelayMate.app
+          plutil -lint dist/RelayMate.app/Contents/Info.plist
+          file dist/RelayMate.app/Contents/MacOS/RelaySetup
+          hdiutil verify dist/RelayMate.dmg
+          cd dist
+          shasum -a 256 -c RelayMate.dmg.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RelayMate-macOS
+          path: |
+            dist/RelayMate.dmg
+            dist/RelayMate.dmg.sha256
+          if-no-files-found: error

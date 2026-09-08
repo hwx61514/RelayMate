@@ -1,0 +1,36 @@
+# macOS and editors
+.DS_Store
+.idea/
+.vscode/
+*.xcuserstate
+xcuserdata/
+
+# Swift build output
+.build/
+.swiftpm/
+DerivedData/
+dist/
+*.xcarchive
+*.dmg
+*.dmg.sha256
+
+# Local environment and logs
+.env
+.env.*
+!.env.example
+*.log
+*.local
+
+# Credentials and signing material
+*.pem
+*.p12
+*.mobileprovision
+secrets/
+
+# Client configuration copied into the repository by mistake
+.claude/
+.codex/
+Claude-3p/
+auth.json
+models_cache.json
+relaymate-model-catalog.json
