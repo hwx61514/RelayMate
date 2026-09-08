@@ -4,9 +4,9 @@
 
 RelayMate is a compact native macOS utility for configuring an API relay in Claude Desktop, Claude Code, or OpenAI Codex. It validates the selected protocol before writing configuration and can restore the exact files that existed before the first application.
 
-The app guides setup in four steps: choose Claude or Codex, enter the relay URL, enter the API key, then choose models. The model step automatically reads the relay's complete `/v1/models` catalog. For both clients, check every model that should appear in the model menu and choose one checked model as the default. Claude Code uses Claude's selected default. When the catalog explicitly marks a Claude model with `supports1m` or `supports_1m`, RelayMate also enables that capability in Claude Desktop without adding another setup choice. Models without explicit metadata are left unchanged. For Codex, RelayMate writes a private model catalog containing exactly the checked models and references it from `config.toml`. Manual model entry remains available.
+The app guides setup in four steps: choose Claude or Codex, select a saved relay or enter a new URL, enter the API key, then choose models. The model step automatically reads the relay's complete `/v1/models` catalog. For both clients, check every model that should appear in the model menu and choose one checked model as the default. RelayMate saves multiple named relays locally, including separate Claude and Codex model selections, so they can be tested and switched later. Manual model entry remains available.
 
-Selecting a client scans that client's standard configuration file. RelayMate distinguishes an existing relay created elsewhere from a configuration it manages itself. Existing relay details can be reused for reconfiguration, while restore is offered only after RelayMate has saved a valid baseline.
+Selecting a client scans that client's standard configuration file. RelayMate preserves detected relay details in its saved platform list before applying another relay. Existing Codex provider tables remain unchanged unless the user explicitly selects historical-session redirection. Restore is offered only after RelayMate has saved a valid baseline.
 
 RelayMate does not read, import, or depend on CC Switch data.
 
@@ -24,17 +24,11 @@ Codex relays must implement the Responses API. Chat Completions-only endpoints a
 Requirements: macOS 13 or later and Xcode 15 or later.
 
 ```bash
-chmod +x scripts/package-app.sh
-scripts/package-app.sh
-```
-
-The packaged application is written to `dist/RelayMate.app`.
-
-Run the test suite with:
-
-```bash
 swift test --disable-sandbox
+scripts/package-dmg.sh
 ```
+
+The universal Apple Silicon and Intel application, DMG, and SHA-256 checksum are written to `dist/`.
 
 The current application targets macOS. Windows support is not implemented yet; the contributor specification is in [docs/windows-port.md](docs/windows-port.md).
 
@@ -44,7 +38,7 @@ Claude Code configuration is merged into `~/.claude/settings.json`. Claude Deskt
 
 For Claude Code, a URL ending in `/v1` is normalized before it is written because Claude Code appends `/v1/messages` itself. Model discovery still uses the entered relay URL's `/v1/models` endpoint.
 
-Each Codex conversation remembers the provider *name* it was created with, and the address is looked up from `config.toml` at request time, so pointing Codex at a new relay only affects new conversations. The URL step therefore lists the other providers already present in `config.toml` together with how many stored sessions reference each one, and pre-checks the ones that are actually in use. A checked provider's table is replaced wholesale with the new relay's settings — only its display `name` is kept, because leftover keys such as `requires_openai_auth` would conflict with the new route. The table lives in `config.toml`, which is already backed up, so a restore undoes this along with everything else. Claude needs no equivalent: both Claude Desktop and Claude Code read a single process-wide configuration, so old conversations follow the new relay after a restart.
+Each Codex conversation remembers the provider *name* it was created with, and the address is looked up from `config.toml` at request time, so pointing Codex at a new relay only affects new conversations. The URL step lists other providers already present in `config.toml` together with how many stored sessions reference each one. They remain unchecked and unchanged by default. Explicitly checking one redirects those historical conversations; the original table is covered by the same exact restoration backup. Claude needs no equivalent because Claude Desktop and Claude Code read one process-wide configuration after restart.
 
 Original files are stored privately under `~/Library/Application Support/RelaySetup/`. A restore proceeds immediately when managed files still match the last applied version. External changes require explicit confirmation before restoring the original bytes.
 

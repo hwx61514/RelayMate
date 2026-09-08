@@ -83,6 +83,11 @@ struct LegacyProvider: Equatable, Identifiable {
     var id: String { name }
 }
 
+struct DiscoveredRelay: Equatable {
+    let name: String
+    let configuration: RelayConfiguration
+}
+
 struct ModelCatalog: Equatable {
     var models: [String]
     var oneMillionContextModels: Set<String>

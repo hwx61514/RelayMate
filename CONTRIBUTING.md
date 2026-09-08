@@ -8,10 +8,10 @@ The macOS application requires macOS 13 or later and Xcode 15 or later.
 
 ```bash
 swift test --disable-sandbox
-scripts/package-app.sh
+scripts/package-dmg.sh
 ```
 
-The packaged application is written to `dist/RelayMate.app`.
+The packaged application, DMG, and checksum are written to `dist/`.
 
 ## Privacy rules
 

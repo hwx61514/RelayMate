@@ -370,7 +370,7 @@ final class ConfigurationTests: XCTestCase {
     }
 
     @MainActor
-    func testWizardChecksLegacyProvidersThatHaveHistoricalSessions() throws {
+    func testWizardDoesNotRedirectHistoricalProvidersUntilUserSelectsThem() throws {
         let adapter = CodexConfigurationAdapter(homeDirectory: temporaryDirectory)
         try writeCodexFixture(adapter: adapter, sessions: ["custom"])
 
@@ -384,7 +384,7 @@ final class ConfigurationTests: XCTestCase {
         )
         viewModel.select(.codex)
         XCTAssertEqual(viewModel.legacyProviders.map(\.name), ["custom"])
-        XCTAssertEqual(viewModel.redirectedProviders, ["custom"])
+        XCTAssertTrue(viewModel.redirectedProviders.isEmpty)
 
         viewModel.select(.claude)
         XCTAssertTrue(viewModel.legacyProviders.isEmpty)
@@ -1196,8 +1196,57 @@ final class ConfigurationTests: XCTestCase {
 
         viewModel.deleteSelectedProfile()
 
-        XCTAssertTrue(try savedStore.load().isEmpty)
+        let remaining = try savedStore.load()
+        XCTAssertEqual(remaining.count, 1)
+        XCTAssertEqual(remaining.first?.baseURL, "https://active.example/v1")
         XCTAssertEqual(try codex.currentConfiguration()?.baseURL, "https://active.example/v1")
+    }
+
+    func testCodexDiscoversProviderTablesWithoutChangingTheirContents() throws {
+        let adapter = CodexConfigurationAdapter(homeDirectory: temporaryDirectory)
+        try writeCodexFixture(adapter: adapter)
+        let original = try Data(contentsOf: adapter.configURL)
+
+        let relays = adapter.discoveredRelays()
+
+        XCTAssertEqual(relays.map(\.name), ["custom"])
+        XCTAssertEqual(relays.first?.configuration.baseURL, "https://old.example")
+        XCTAssertEqual(relays.first?.configuration.model, "old-model")
+        XCTAssertEqual(try Data(contentsOf: adapter.configURL), original)
+    }
+
+    @MainActor
+    func testExternalConfigurationIsSavedBeforeSwitchingPlatforms() throws {
+        let home = temporaryDirectory.appendingPathComponent("home")
+        let support = temporaryDirectory.appendingPathComponent("support")
+        let claude = ClaudeConfigurationAdapter(homeDirectory: home)
+        let settings: [String: Any] = [
+            "env": [
+                "ANTHROPIC_BASE_URL": "https://existing.example",
+                "ANTHROPIC_AUTH_TOKEN": "existing-key",
+                "ANTHROPIC_MODEL": "claude-existing"
+            ]
+        ]
+        try PrivateFileSystem.write(
+            try JSONSerialization.data(withJSONObject: settings),
+            to: claude.settingsURL
+        )
+        let savedStore = SavedRelayStore(directory: support)
+
+        let viewModel = RelaySetupModel(
+            backupStore: BackupStore(directory: support),
+            savedRelayStore: savedStore,
+            adapters: [
+                .claude: claude,
+                .codex: CodexConfigurationAdapter(homeDirectory: home)
+            ]
+        )
+
+        let saved = try XCTUnwrap(savedStore.load().first)
+        XCTAssertEqual(saved.baseURL, "https://existing.example")
+        XCTAssertEqual(saved.apiKey, "existing-key")
+        XCTAssertEqual(saved.clients[.claude]?.model, "claude-existing")
+        XCTAssertEqual(viewModel.selectedProfileID, saved.id)
     }
 
 }

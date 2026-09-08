@@ -80,6 +80,14 @@ Launch `RelayMate.app`. The main window opens on a guided client-selection step 
 - [ ] Perform final privacy, secret, repository-content, and release-artifact scans; initialize the public history without local build data or credentials. Verify the commit tree contains only intended files.
 - [ ] Create the public GitHub repository, push the verified source, publish the initial release with DMG and SHA-256 checksum, and verify the repository page and downloadable release assets through GitHub's API.
 
+## Saved Relay Platforms
+
+- [ ] Store multiple named relay platforms with URL, API key, and separate Claude/Codex model selections in RelayMate's private application-support directory. Verify persistence, user-only file permissions, per-client selections, and update-in-place behavior.
+- [ ] Show saved platforms in the existing URL step, support new, select, rename, and delete actions, and keep deletion independent from active client configuration and original backups. Verify the rendered minimum-size window and confirmation copy.
+- [ ] Preserve a relay already detected in Claude or Codex standard configuration as a saved platform before another relay replaces the active values. Verify external active configurations remain selectable after switching.
+- [ ] Discover Codex provider tables as optional saved platforms without reading another manager's database or deleting and rewriting unrelated provider tables. Verify providers remain byte-for-byte unchanged unless the user explicitly selects historical-session redirection.
+- [ ] Re-run unit, isolated UI, package, DMG, privacy, and release checks before publishing.
+
 ## Open Source Preparation
 
 - [x] Replace personal application identifiers and historical references with neutral project-owned values while preserving the existing application-support backup path. Verified tracked-source and packaged-binary scans found no personal names, domains, addresses, or absolute home paths; the bundle identifier is `com.relaymate.desktop` and the compatibility backup path remains unchanged.

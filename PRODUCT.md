@@ -10,7 +10,7 @@ Mac users who already have an API relay URL, model name, and API key. They want 
 
 ## Product Purpose
 
-RelayMate configures one supported coding client at a time through a short guided form. It validates the relay before changing files, preserves the user's original configuration, and restores that configuration on demand.
+RelayMate configures one supported coding client at a time through a short guided form. It saves multiple named relay platforms for later switching, validates a selected relay before changing files, preserves detected client configuration, and restores the user's original files on demand.
 
 ## Brand Personality
 

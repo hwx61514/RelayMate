@@ -96,6 +96,8 @@ xattr -d com.apple.quarantine /Applications/RelayMate.app
 
 每次成功应用后，RelayMate 会自动保存当前平台。保存内容包括平台名称、URL、API Key，以及 Claude 和 Codex 各自上次启用的模型。
 
+如果 RelayMate 在 Claude 或 Codex 的标准配置中发现已有中转站，会先把它保留到平台列表。Codex 的其他 provider 配置也会保留，除非你明确勾选“让旧对话也用这个中转站”，否则 RelayMate 不会改写它们。
+
 切换时重新打开 RelayMate，选择 AI 工具，在“已保存的平台”中选择目标平台，然后继续读取模型、测试并应用。RelayMate 仍会在切换前验证连接，不会把已经失效的平台直接写入配置。
 
 点击垃圾桶按钮只会删除 RelayMate 保存的平台资料，不会修改 Claude 或 Codex 当前正在使用的配置，也不会删除原配置备份。

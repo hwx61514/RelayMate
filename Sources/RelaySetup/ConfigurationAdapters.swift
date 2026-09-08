@@ -5,6 +5,7 @@ protocol ConfigurationAdapter {
     var managedPaths: [URL] { get }
     func currentConfiguration() throws -> RelayConfiguration?
     func apply(_ configuration: RelayConfiguration) throws
+    func discoveredRelays() -> [DiscoveredRelay]
     /// 客户端把历史会话绑在了 provider 名字上时，列出这些名字供用户一并接管。
     func legacyProviders() -> [LegacyProvider]
 }
@@ -13,6 +14,13 @@ extension ConfigurationAdapter {
     /// Claude 没有按会话绑定的 provider：桌面端的网关 profile 是全局单选，
     /// Claude Code 从 settings.json 的 env 读取，重开即生效。
     func legacyProviders() -> [LegacyProvider] { [] }
+
+    func discoveredRelays() -> [DiscoveredRelay] {
+        guard let configuration = try? currentConfiguration(),
+              !configuration.baseURL.isEmpty else { return [] }
+        let name = URL(string: configuration.baseURL)?.host ?? client.name
+        return [DiscoveredRelay(name: name, configuration: configuration)]
+    }
 }
 
 struct ClaudeConfigurationAdapter: ConfigurationAdapter {
@@ -382,6 +390,33 @@ struct CodexConfigurationAdapter: ConfigurationAdapter {
                 sessionCount: usage[name] ?? 0
             )
         }
+    }
+
+    func discoveredRelays() -> [DiscoveredRelay] {
+        guard let text = try? String(contentsOf: configURL, encoding: .utf8) else { return [] }
+        let current = try? currentConfiguration()
+        let activeProvider = TOMLText.topLevelValue(for: "model_provider", in: text) ?? "openai"
+        var relays: [DiscoveredRelay] = []
+
+        if let current, !current.baseURL.isEmpty {
+            let activeName = activeProvider == Self.profileName
+                ? (URL(string: current.baseURL)?.host ?? "当前 Codex 中转站")
+                : activeProvider
+            relays.append(DiscoveredRelay(name: activeName, configuration: current))
+        }
+
+        for name in providerNames(in: text) where name != Self.profileName && name != activeProvider {
+            guard let table = TOMLText.table(named: "model_providers.\(name)", in: text),
+                  let baseURL = TOMLText.value(for: "base_url", in: table),
+                  !baseURL.isEmpty else { continue }
+            let displayName = TOMLText.value(for: "name", in: table) ?? name
+            let key = TOMLText.value(for: "experimental_bearer_token", in: table) ?? ""
+            relays.append(DiscoveredRelay(
+                name: displayName,
+                configuration: RelayConfiguration(baseURL: baseURL, model: "", apiKey: key)
+            ))
+        }
+        return relays
     }
 
     /// 统计每个 provider 名字被多少个历史会话记住。会话记录的第一行是 `session_meta`，

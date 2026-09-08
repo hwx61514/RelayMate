@@ -192,6 +192,7 @@ final class RelaySetupModel: ObservableObject {
     private func loadCurrentConfiguration() {
         guard let adapter = adapters[selectedClient] else { return }
         legacyProviders = adapter.legacyProviders()
+        preserveDiscoveredRelays(adapter.discoveredRelays())
         let configuration = try? adapter.currentConfiguration()
         if let configuration {
             baseURL = configuration.baseURL
@@ -260,8 +261,7 @@ final class RelaySetupModel: ObservableObject {
     private func selectMatchingSavedProfile(for configuration: RelayConfiguration?) {
         guard let configuration,
               let profile = savedProfiles.first(where: {
-                  $0.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                      .caseInsensitiveCompare(configuration.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) == .orderedSame
+                  normalizedURL($0.baseURL) == normalizedURL(configuration.baseURL)
               }) else {
             selectedProfileID = nil
             profileName = ""
@@ -284,8 +284,7 @@ final class RelaySetupModel: ObservableObject {
         let matchingIndex = selectedProfileID.flatMap { id in
             savedProfiles.firstIndex { $0.id == id }
         } ?? savedProfiles.firstIndex {
-            $0.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                .caseInsensitiveCompare(configuration.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) == .orderedSame
+            normalizedURL($0.baseURL) == normalizedURL(configuration.baseURL)
         }
 
         if let index = matchingIndex {
@@ -317,14 +316,67 @@ final class RelaySetupModel: ObservableObject {
         }
     }
 
-    /// 已经指向同一中转站的 provider 保持勾选；其余默认勾上那些确实有历史会话的，
-    /// 否则换了中转站以后那些会话仍然会打旧地址。
+    private func preserveDiscoveredRelays(_ relays: [DiscoveredRelay]) {
+        var didChange = false
+        for relay in relays {
+            let configuration = relay.configuration.trimmed
+            guard !configuration.baseURL.isEmpty else { continue }
+            let clientConfiguration: SavedClientConfiguration? = configuration.model.isEmpty
+                ? nil
+                : SavedClientConfiguration(
+                    model: configuration.model,
+                    enabledModels: configuration.enabledModels.isEmpty
+                        ? [configuration.model]
+                        : configuration.enabledModels,
+                    oneMillionContextModels: configuration.oneMillionContextModels
+                )
+            if let index = savedProfiles.firstIndex(where: {
+                normalizedURL($0.baseURL) == normalizedURL(configuration.baseURL)
+            }) {
+                var profile = savedProfiles[index]
+                var profileChanged = false
+                if !configuration.apiKey.isEmpty, profile.apiKey != configuration.apiKey {
+                    profile.apiKey = configuration.apiKey
+                    profileChanged = true
+                }
+                if let clientConfiguration,
+                   profile.clients[selectedClient] != clientConfiguration {
+                    profile.clients[selectedClient] = clientConfiguration
+                    profileChanged = true
+                }
+                if profileChanged {
+                    profile.updatedAt = Date()
+                    savedProfiles[index] = profile
+                    didChange = true
+                }
+            } else {
+                savedProfiles.append(SavedRelayProfile(
+                    id: UUID(),
+                    name: relay.name,
+                    baseURL: configuration.baseURL,
+                    apiKey: configuration.apiKey,
+                    clients: clientConfiguration.map { [selectedClient: $0] } ?? [:],
+                    updatedAt: Date()
+                ))
+                didChange = true
+            }
+        }
+        guard didChange else { return }
+        savedProfiles.sort { $0.updatedAt > $1.updatedAt }
+        do {
+            try savedRelayStore.save(savedProfiles)
+        } catch {
+            message = FeedbackMessage(kind: .error, text: readable(error))
+        }
+    }
+
+    /// 只保留已经明确由用户改写过的 provider；新发现的旧 provider 默认不接管。
     private func defaultRedirectedProviders(current: RelayConfiguration?) -> Set<String> {
         let names = Set(legacyProviders.map(\.name))
         if let current, !current.codexRedirectedProviders.isEmpty {
             return names.intersection(current.codexRedirectedProviders)
         }
-        return Set(legacyProviders.filter { $0.sessionCount > 0 }.map(\.name))
+        return []
     }
 
     func toggleEnabledModel(_ value: String) {
@@ -363,5 +415,9 @@ final class RelaySetupModel: ObservableObject {
 
     private func readable(_ error: Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+    }
+
+    private func normalizedURL(_ value: String) -> String {
+        value.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
     }
 }
