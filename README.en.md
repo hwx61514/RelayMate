@@ -2,6 +2,10 @@
 
 [简体中文](README.md) · English
 
+<p align="center">
+  <img src="docs/screenshots/01-select-client.png" width="760" alt="RelayMate main window: choose Claude or Codex, each card showing its current configuration status">
+</p>
+
 RelayMate is a compact native macOS utility for configuring an API relay in Claude Desktop, Claude Code, or OpenAI Codex. It validates the selected protocol before writing configuration and can restore the exact files that existed before the first application.
 
 The app guides setup in four steps: choose Claude or Codex, select a saved relay or enter a new URL, enter the API key, then choose models. The model step automatically reads the relay's complete `/v1/models` catalog. For both clients, check every model that should appear in the model menu and choose one checked model as the default. RelayMate saves multiple named relays locally, including separate Claude and Codex model selections, so they can be tested and switched later. Manual model entry remains available.
