@@ -6,7 +6,7 @@
   <img src="docs/screenshots/01-select-client.png" width="760" alt="RelayMate main window: choose Claude or Codex, each card showing its current configuration status">
 </p>
 
-RelayMate is a compact native macOS utility for configuring an API relay in Claude Desktop, Claude Code, or OpenAI Codex. It validates the selected protocol before writing configuration and can restore the exact files that existed before the first application.
+RelayMate is a compact desktop utility for macOS and Windows for configuring an API relay in Claude Desktop, Claude Code, or OpenAI Codex. It validates the selected protocol before writing configuration and can restore the exact files that existed before the first application.
 
 The app guides setup in four steps: choose Claude or Codex, select a saved relay or enter a new URL, enter the API key, then choose models. The model step automatically reads the relay's complete `/v1/models` catalog. For both clients, check every model that should appear in the model menu and choose one checked model as the default. RelayMate saves multiple named relays locally, including separate Claude and Codex model selections, so they can be tested and switched later. Manual model entry remains available.
 
@@ -25,6 +25,8 @@ Codex relays must implement the Responses API. Chat Completions-only endpoints a
 
 ## Build
 
+### macOS
+
 Requirements: macOS 13 or later and Xcode 15 or later.
 
 ```bash
@@ -34,7 +36,16 @@ scripts/package-dmg.sh
 
 The universal Apple Silicon and Intel application, DMG, and SHA-256 checksum are written to `dist/`.
 
-The current application targets macOS. Windows support is not implemented yet; the contributor specification is in [docs/windows-port.md](docs/windows-port.md).
+### Windows x86
+
+Requirements: Windows 10 version 1809 or later and the .NET 10 SDK. The WinUI XAML compiler requires a Windows build host.
+
+```powershell
+dotnet run --project windows/RelayMate.Core.Tests/RelayMate.Core.Tests.csproj --configuration Release
+scripts/package-windows.ps1 -Architecture x86
+```
+
+A distributable single executable (`dist/RelayMate-Windows-x86.exe`), its SHA-256 checksum, a publish inspection directory, and a ZIP are written to `dist/`. The single executable extracts its WinUI runtime payload to the current user's temporary directory on first launch, so the first launch can take longer. Pass `-Architecture x64` for a 64-bit build. Startup failures are shown in a dialog and logged to `%LOCALAPPDATA%\RelayMate\logs\startup.log`. Keep the single-file executable's build-time filename unchanged; renaming a WinUI 3 single-file executable can break XAML resource resolution. See [docs/windows-port.md](docs/windows-port.md) for paths, recovery behavior, and release verification.
 
 ## Configuration and recovery
 
@@ -44,7 +55,7 @@ For Claude Code, a URL ending in `/v1` is normalized before it is written becaus
 
 Each Codex conversation remembers the provider *name* it was created with, and the address is looked up from `config.toml` at request time, so pointing Codex at a new relay only affects new conversations. The URL step lists other providers already present in `config.toml` together with how many stored sessions reference each one. They remain unchecked and unchanged by default. Explicitly checking one redirects those historical conversations; the original table is covered by the same exact restoration backup. Claude needs no equivalent because Claude Desktop and Claude Code read one process-wide configuration after restart.
 
-Original files are stored privately under `~/Library/Application Support/RelaySetup/`. A restore proceeds immediately when managed files still match the last applied version. External changes require explicit confirmation before restoring the original bytes.
+On macOS, original files are stored privately under `~/Library/Application Support/RelaySetup/`. On Windows, they are stored under `%LOCALAPPDATA%\RelayMate\`. A restore proceeds immediately when managed files still match the last applied version. External changes require explicit confirmation before restoring the original bytes.
 
 ## Contributing and security
 

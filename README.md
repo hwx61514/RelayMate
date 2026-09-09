@@ -12,7 +12,7 @@
   <img src="docs/screenshots/01-select-client.png" width="760" alt="RelayMate 主界面：选择 Claude 或 Codex，卡片上标注各自的当前配置状态">
 </p>
 
-RelayMate 是一个精简的 macOS 设置向导，适合已经拿到中转站 URL 和 API Key，但不想研究 JSON、TOML、环境变量或第三方部署模式的用户。它会读取中转站的模型列表，让你勾选需要的模型，测试连接成功后再修改 Claude 或 Codex 的配置。
+RelayMate 是一个精简的桌面设置向导。仓库包含原有的 macOS SwiftUI 客户端，以及独立的 C# + WinUI 3 Windows 客户端；两者都适合已经拿到中转站 URL 和 API Key，但不想研究 JSON、TOML、环境变量或第三方部署模式的用户。RelayMate 会读取中转站的模型列表，让你勾选需要的模型，测试连接成功后再修改 Claude 或 Codex 的配置。
 
 它不会启动本地代理，不常驻后台，不接管网络，也不读取 CC Switch 或其他切换工具的数据。
 
@@ -49,6 +49,8 @@ Codex 当前要求中转站支持 OpenAI Responses 接口。只能调用 `/v1/ch
 
 ## 下载与安装
 
+### macOS
+
 系统要求：macOS 13 或更高版本。安装包同时支持 Apple Silicon 和 Intel Mac。
 
 1. 在项目右侧的 **Releases** 中下载 `RelayMate.dmg`。
@@ -65,6 +67,10 @@ xattr -d com.apple.quarantine /Applications/RelayMate.app
 ```
 
 不放心预编译包的，可以[自己从源码构建](#从源码构建)，两条命令即可。
+
+### Windows
+
+仓库内的 Windows 客户端支持 32 位 `win-x86` 和 64 位 `win-x64`。当前请在 Windows 10 1809 或更高版本的 Windows 构建机上[从源码构建](#windows-x86)；WinUI XAML 编译器不能在 macOS 上生成最终的 `.exe`。
 
 ## 第一次设置
 
@@ -216,9 +222,11 @@ Claude 桌面应用对模型 ID 的格式有要求，RelayMate 会自动过滤�
 
 ### Windows 可以用吗
 
-当前版本只支持 macOS。Windows 移植范围、配置路径和验收要求见 [Windows 移植说明](docs/windows-port.md)，欢迎贡献 Windows 客户端。
+可以。仓库包含独立的 C# + WinUI 3 Windows 客户端，支持 `win-x86`（32 位）和 `win-x64`。Windows 版使用 `%USERPROFILE%` 与 `%LOCALAPPDATA%` 下的客户端配置路径，构建和恢复细节见 [Windows 移植说明](docs/windows-port.md)。
 
 ## 从源码构建
+
+### macOS
 
 开发要求：macOS 13 或更高版本，Xcode 15 或更高版本。
 
@@ -227,10 +235,26 @@ swift test --disable-sandbox
 scripts/package-dmg.sh
 ```
 
-生成的应用和安装包位于 `dist/`：
+生成 `dist/RelayMate.app`、`dist/RelayMate.dmg` 和 SHA-256 校验文件。
 
-- `dist/RelayMate.app`
-- `dist/RelayMate.dmg`
-- `dist/RelayMate.dmg.sha256`
+### Windows x86
+
+开发要求：Windows 10 1809 或更高版本、.NET 10 SDK。WinUI XAML 编译器只能在 Windows 上运行。
+
+```powershell
+dotnet run --project windows/RelayMate.Core.Tests/RelayMate.Core.Tests.csproj --configuration Release
+scripts/package-windows.ps1 -Architecture x86
+```
+
+生成：
+
+- `dist/RelayMate-Windows-x86.exe`：可单独复制和运行的自解压单文件版本
+- `dist/RelayMate-Windows-x86.exe.sha256`
+- `dist/RelayMate-Windows-x86/`：发布检查目录
+- `dist/RelayMate-Windows-x86.zip` 及其 SHA-256 校验文件
+
+首次启动单文件版本时，Windows 会将 WinUI 运行组件解压到当前用户的临时目录，因此可能比后续启动稍慢。要构建 64 位版本，把参数改为 `-Architecture x64`。
+
+如果程序启动失败，新版本会显示错误对话框，并把详细信息写入 `%LOCALAPPDATA%\RelayMate\logs\startup.log`。WinUI 3 单文件的文件名必须与构建时名称一致；不要在打包完成后重命名 EXE。
 
 项目使用 MIT License。提交代码前请阅读 [贡献指南](CONTRIBUTING.md)；安全问题请按 [安全策略](SECURITY.md) 私下报告。
