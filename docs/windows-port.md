@@ -1,46 +1,80 @@
 # Windows Port
 
-Windows support is not implemented. This document defines the expected contribution boundary and acceptance criteria for a future Windows client.
+RelayMate now contains a separate C# + WinUI 3 Windows client under `windows/`. The macOS SwiftUI application remains unchanged. Both clients implement the same configuration, validation, immutable-baseline backup, drift detection, and exact-restore semantics.
 
-## Product boundary
+## Supported architecture
 
-The Windows application should keep the same four-step workflow as macOS: choose Claude or Codex, enter the relay URL, enter the API key, select enabled and default models, then test and apply. Selecting an already configured client must offer restoration or reconfiguration after scanning the client's actual files.
+The primary Windows artifact is a self-contained **32-bit x86** application (`win-x86`). The project also declares `x64`/`win-x64` so a 64-bit build can be produced from the same source.
 
-The first Windows implementation should remain a configuration utility. Local proxying, protocol conversion, provider catalogs, usage tracking, and background services are outside this port.
+Windows builds must run on Windows because the WinUI XAML compiler is itself a Windows executable. The repository CI uses `windows-2025` and verifies the produced PE machine field (`0x014c` for x86) before uploading the artifact.
 
-## Configuration targets to verify
+## Projects
 
-These paths are research starting points and must be confirmed against current Windows releases before support is declared:
+- `windows/RelayMate.Core`: platform paths, JSON/TOML configuration adapters, relay connectivity tests, secure atomic file writes, Windows ACL handling, backup/restore, and saved relay storage.
+- `windows/RelayMate.Windows`: the WinUI 3 desktop interface.
+- `windows/RelayMate.Core.Tests`: dependency-free executable tests that also run on macOS and Linux.
+- `windows/RelayMate.Windows.sln`: Visual Studio solution.
+
+## Build x86
+
+Requirements:
+
+- Windows 10 version 1809 or later, or Windows 11
+- .NET 10 SDK
+- Network access to restore the official `Microsoft.WindowsAppSDK` NuGet package
+
+From PowerShell:
+
+```powershell
+scripts/package-windows.ps1 -Architecture x86
+```
+
+Outputs:
+
+```text
+dist/RelayMate-Windows-x86.exe
+dist/RelayMate-Windows-x86.exe.sha256
+dist/RelayMate-Windows-x86/
+dist/RelayMate-Windows-x86.zip
+dist/RelayMate-Windows-x86.zip.sha256
+```
+
+The primary artifact is a self-contained single executable. It bundles the .NET and Windows App SDK payload and extracts native WinUI dependencies to the current user's temporary directory at launch. The publish directory and ZIP are retained for inspection and troubleshooting.
+
+Startup exceptions are displayed in a native error dialog and written to `%LOCALAPPDATA%\RelayMate\logs\startup.log`. The packaging script sets the final executable name through the app project's conditional MSBuild `AssemblyName`; it must not publish under one name and rename the EXE afterward, because WinUI single-file XAML resource lookup is filename-sensitive. If the process exits before managed startup diagnostics can initialize, inspect Windows Event Viewer under **Windows Logs → Application**.
+
+A 64-bit build is also available:
+
+```powershell
+scripts/package-windows.ps1 -Architecture x64
+```
+
+## Configuration paths
+
+The Windows client uses:
 
 - Claude Code: `%USERPROFILE%\.claude\settings.json`
 - Claude Desktop normal deployment: `%LOCALAPPDATA%\Claude\claude_desktop_config.json`
 - Claude Desktop third-party deployment: `%LOCALAPPDATA%\Claude-3p\claude_desktop_config.json`
 - Claude Desktop gateway metadata and profiles: `%LOCALAPPDATA%\Claude-3p\configLibrary\`
 - Codex: `%CODEX_HOME%\config.toml` when `CODEX_HOME` is set, otherwise `%USERPROFILE%\.codex\config.toml`
+- RelayMate backups: `%LOCALAPPDATA%\RelayMate\`
 
-Do not read CC Switch or another manager's database. Preserve unrelated fields in client-owned JSON and TOML files.
+Tests can override these roots with `RELAY_SETUP_HOME`, `RELAY_SETUP_LOCALAPPDATA`, and `RELAY_SETUP_SUPPORT_DIR`.
 
-## Required behavior
+## Security and recovery
 
-- Scan unmanaged, RelayMate-managed, drifted, missing, and malformed configurations.
-- Validate Anthropic Messages for Claude and OpenAI Responses for Codex before writing.
-- Fetch `/v1/models`, support horizontal multi-select, and require one enabled default model.
-- Configure Claude Code and Claude Desktop together, including third-party deployment selection.
-- Generate a Codex model catalog containing exactly the enabled models.
-- Save one immutable baseline before the first apply and add newly managed paths without replacing earlier baseline bytes.
-- Write files with user-only access where Windows supports it and replace files atomically.
-- Restore original contents and original absence exactly; require an explicit override after external drift.
-- Explain when Claude or Codex must be fully restarted.
+Configuration files are written through a temporary file in the destination directory and atomically replaced. On Windows, RelayMate applies a user-only ACL to new private files and stores the original discretionary ACL (DACL) in the immutable baseline so restoration can reinstate it without requiring elevated Windows privileges.
 
-## Verification
+Before the first apply, RelayMate records the original bytes or original absence of every managed file. Subsequent external drift is detected by SHA-256. A normal restore refuses to overwrite drift; the UI requires an explicit confirmation before forcing restoration.
 
-A Windows pull request is complete only after automated unit tests and an end-to-end run on a supported Windows version demonstrate:
+## Release verification still required
 
-1. Fresh setup from the normal application entry point.
-2. A real minimal request from Claude Code, Claude Desktop, and Codex to an isolated relay.
-3. Multiple enabled models and the selected default appearing in each client's model menu.
-4. Persistence after fully restarting the target client and RelayMate.
-5. Authentication, network, malformed-response, and permission error feedback.
-6. Exact restoration for existing files and deletion of files RelayMate created.
+Before publishing a signed Windows release, run an end-to-end check on the minimum supported Windows version and confirm:
 
-Document the Windows UI framework, installer format, minimum OS version, signing status, and reproducible build commands in the pull request.
+1. Claude Code, Claude Desktop, and Codex read the documented Windows paths.
+2. A real request reaches an isolated relay for both supported protocols.
+3. Multiple enabled models and the selected default appear after fully restarting each client.
+4. Existing unrelated JSON/TOML fields survive apply.
+5. Restore reproduces original bytes, absence, and Windows DACLs.
+6. The final archive is code-signed or its unsigned status is clearly documented.

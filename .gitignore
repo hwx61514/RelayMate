@@ -34,3 +34,9 @@ Claude-3p/
 auth.json
 models_cache.json
 relaymate-model-catalog.json
+
+# .NET / Windows build output
+**/bin/
+**/obj/
+*.user
+*.suo
