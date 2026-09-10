@@ -129,7 +129,17 @@ public sealed partial class MainWindow : Window
         {
             var client = SelectedClient;
             var status = _service.Status(client);
-            var current = _service.CurrentConfiguration(client);
+            // An unreadable or malformed config must still clear the form; leaving the
+            // previous client's URL and key in the boxes would apply them to this client.
+            RelayConfiguration? current;
+            try
+            {
+                current = _service.CurrentConfiguration(client);
+            }
+            catch (RelayMateException)
+            {
+                current = null;
+            }
             if (current is not null)
             {
                 BaseUrlBox.Text = current.BaseUrl;

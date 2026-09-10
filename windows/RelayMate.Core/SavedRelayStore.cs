@@ -2,6 +2,11 @@ using System.Text.Json;
 
 namespace RelayMate.Core;
 
+/// <summary>
+/// Persistence for the saved relay list. No shell constructs this yet — the Windows
+/// window has no saved-relay UI — so it is groundwork, not a shipped feature. The
+/// README documents the gap; wire this up when that UI lands.
+/// </summary>
 public sealed class SavedRelayStore
 {
     private static readonly JsonSerializerOptions Options = new()

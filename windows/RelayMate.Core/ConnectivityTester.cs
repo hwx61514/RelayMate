@@ -67,9 +67,25 @@ public sealed class ConnectivityTester
         CancellationToken cancellationToken = default)
     {
         var baseUri = ValidateBaseUri(baseUrl);
+        var key = apiKey.Trim();
         using var request = new HttpRequestMessage(HttpMethod.Get, ModelsUri(baseUri));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
-        using var response = await SendWithRetryAsync(request, cancellationToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+        // Anthropic-style relays authenticate on x-api-key rather than Authorization.
+        request.Headers.TryAddWithoutValidation("x-api-key", key);
+        request.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+
+        HttpResponseMessage sent;
+        try
+        {
+            sent = await SendWithRetryAsync(request, cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException
+            && !cancellationToken.IsCancellationRequested)
+        {
+            throw RelayMateException.Network(exception.Message);
+        }
+
+        using var response = sent;
         var data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -239,12 +255,20 @@ public sealed class ConnectivityTester
                 }
                 return response;
             }
-            catch (HttpRequestException) when (attempt < 2)
+            catch (HttpRequestException exception)
             {
+                if (attempt >= 2)
+                {
+                    throw RelayMateException.Network(exception.Message);
+                }
                 await Task.Delay(800, cancellationToken);
             }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested && attempt < 2)
+            catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)
             {
+                if (attempt >= 2)
+                {
+                    throw RelayMateException.Network(exception.Message);
+                }
                 await Task.Delay(800, cancellationToken);
             }
         }
@@ -271,23 +295,29 @@ public sealed class ConnectivityTester
         return WithPath(baseUri, path);
     }
 
-    private static Uri EndpointUri(Uri baseUri, ClientKind client, bool chatCompletions)
+    internal static Uri EndpointUri(Uri baseUri, ClientKind client, bool chatCompletions)
     {
         var path = baseUri.AbsolutePath.TrimEnd('/');
         if (client == ClientKind.Claude)
         {
-            if (path.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+            if (!path.EndsWith("/messages", StringComparison.OrdinalIgnoreCase))
             {
-                path = path[..^3];
+                if (path.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+                {
+                    path = path[..^3];
+                }
+                path += "/v1/messages";
             }
-            path += "/v1/messages";
         }
         else
         {
             var endpoint = chatCompletions ? "chat/completions" : "responses";
-            path += path.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
-                ? $"/{endpoint}"
-                : $"/v1/{endpoint}";
+            if (!path.EndsWith($"/{endpoint}", StringComparison.OrdinalIgnoreCase))
+            {
+                path += path.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
+                    ? $"/{endpoint}"
+                    : $"/v1/{endpoint}";
+            }
         }
         return WithPath(baseUri, path);
     }
