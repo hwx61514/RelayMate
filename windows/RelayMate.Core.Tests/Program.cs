@@ -178,6 +178,13 @@ static void TestJsonFieldTypeTolerance()
     True(!JsonFiles.Bool(value, "supports_1m"));
     True(!JsonFiles.Bool(value, "missing"));
 
+    // The same object parsed from text is backed differently; both must behave alike.
+    var parsed = JsonNode.Parse("""{"id":"relay-model","name":42,"supports1m":1,"supports_1m":"false"}""")!.AsObject();
+    True(JsonFiles.String(parsed, "id") == "relay-model");
+    True(JsonFiles.String(parsed, "name") is null);
+    True(JsonFiles.Bool(parsed, "supports1m"));
+    True(!JsonFiles.Bool(parsed, "supports_1m"));
+
     var catalog = ConnectivityTester.ParseModels(
         Encoding.UTF8.GetBytes("""{"data":[{"id":"a","supports1m":1},{"id":"b","supports1m":0}]}"""));
     Equal(2, catalog.Models.Count);

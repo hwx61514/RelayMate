@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text;
@@ -43,8 +44,14 @@ internal static class JsonFiles
     // Relays are inconsistent about these field types, so a mismatch degrades to the
     // default instead of throwing. GetValue<T> raises InvalidOperationException — not
     // JsonException — when the node holds another type, which no caller expects.
+    // Both switch on GetValueKind rather than TryGetValue<T>, because TryGetValue only
+    // converts for JsonElement-backed nodes: on a node built in memory from an int it
+    // demands the exact CLR type, so a numeric check written as TryGetValue<double>
+    // passes against parsed JSON and fails against a constructed JsonObject.
     public static string? String(JsonObject? value, string key) =>
-        value?[key] is JsonValue node && node.TryGetValue<string>(out var text) ? text : null;
+        value?[key] is JsonValue node && node.GetValueKind() == JsonValueKind.String
+            ? node.GetValue<string>()
+            : null;
 
     public static bool Bool(JsonObject? value, string key)
     {
@@ -52,15 +59,21 @@ internal static class JsonFiles
         {
             return false;
         }
-        if (node.TryGetValue<bool>(out var flag))
+        switch (node.GetValueKind())
         {
-            return flag;
+            case JsonValueKind.True:
+                return true;
+            case JsonValueKind.Number:
+                return double.TryParse(
+                    node.ToJsonString(),
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var number) && number != 0;
+            case JsonValueKind.String:
+                var text = node.GetValue<string>();
+                return string.Equals(text, "true", StringComparison.OrdinalIgnoreCase) || text == "1";
+            default:
+                return false;
         }
-        if (node.TryGetValue<double>(out var number))
-        {
-            return number != 0;
-        }
-        return node.TryGetValue<string>(out var text)
-            && (string.Equals(text, "true", StringComparison.OrdinalIgnoreCase) || text == "1");
     }
 }
