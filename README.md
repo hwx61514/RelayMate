@@ -12,7 +12,9 @@
   <img src="docs/screenshots/01-select-client.png" width="760" alt="RelayMate 主界面：选择 Claude 或 Codex，卡片上标注各自的当前配置状态">
 </p>
 
-RelayMate 是一个精简的桌面设置向导。仓库包含原有的 macOS SwiftUI 客户端，以及独立的 C# + WinUI 3 Windows 客户端；两者都适合已经拿到中转站 URL 和 API Key，但不想研究 JSON、TOML、环境变量或第三方部署模式的用户。RelayMate 会读取中转站的模型列表，让你勾选需要的模型，测试连接成功后再修改 Claude 或 Codex 的配置。
+RelayMate 是一个精简的桌面设置向导，适合已经拿到中转站 URL 和 API Key，但不想研究 JSON、TOML、环境变量或第三方部署模式的用户。它会读取中转站的模型列表，让你勾选需要的模型，测试连接成功后再修改 Claude 或 Codex 的配置。
+
+仓库包含两个客户端：功能完整的 macOS SwiftUI 客户端，以及一个较新的 C# + WinUI 3 Windows 客户端。**下面的说明和截图以 macOS 版为准**；Windows 版目前只实现了核心的"读取现有配置 → 测试 → 应用 → 还原"流程，尚不具备已保存中转站列表和 Codex 历史会话重定向，详见 [Windows 版当前的功能差距](#windows-可以用吗)。
 
 它不会启动本地代理，不常驻后台，不接管网络，也不读取 CC Switch 或其他切换工具的数据。
 
@@ -222,7 +224,17 @@ Claude 桌面应用对模型 ID 的格式有要求，RelayMate 会自动过滤�
 
 ### Windows 可以用吗
 
-可以。仓库包含独立的 C# + WinUI 3 Windows 客户端，支持 `win-x86`（32 位）和 `win-x64`。Windows 版使用 `%USERPROFILE%` 与 `%LOCALAPPDATA%` 下的客户端配置路径，构建和恢复细节见 [Windows 移植说明](docs/windows-port.md)。
+可以，但功能比 macOS 版少。仓库包含独立的 C# + WinUI 3 Windows 客户端，支持 `win-x86`（32 位）和 `win-x64`，使用 `%USERPROFILE%` 与 `%LOCALAPPDATA%` 下的客户端配置路径。
+
+Windows 版已经具备：读取 Claude / Codex 现有配置、拉取模型列表、连通性测试、应用配置、按原始字节还原。
+
+Windows 版**暂未实现**：
+
+- 已保存中转站列表（不能保存多个中转站来回切换，每次都要重新填 URL 和 API Key）
+- Codex 历史会话重定向的勾选框（只影响新会话，已有会话仍指向原来的 provider）
+- 本页的四步向导式界面，Windows 版是单页表单
+
+构建和恢复细节见 [Windows 移植说明](docs/windows-port.md)。欢迎补齐上面的差距。
 
 ## 从源码构建
 

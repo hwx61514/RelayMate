@@ -10,6 +10,8 @@ var tests = new (string Name, Action Body)[]
     ("Backup detects drift and restores exact bytes", TestBackupRestore),
     ("Model catalog parses common shapes", TestModelParsing),
     ("TOML top-level updates do not overwrite tables", TestTomlEditing),
+    ("Mistyped JSON fields degrade instead of throwing", TestJsonFieldTypeTolerance),
+    ("Endpoint paths are not appended twice", TestEndpointUriIdempotence),
     ("Windows app and packaging declare x86 RID", TestX86ProjectConfiguration)
 };
 
@@ -34,10 +36,7 @@ return failures == 0 ? 0 : 1;
 static void TestWindowsPaths()
 {
     using var temp = TempDirectory.Create();
-    var paths = new WindowsRelayMatePaths(
-        Path.Combine(temp.Path, "home"),
-        Path.Combine(temp.Path, "local"),
-        Path.Combine(temp.Path, "support"));
+    var paths = NewPaths(temp.Path);
     Equal(Path.Combine(temp.Path, "home", ".claude", "settings.json"), paths.ClaudeCodeSettings);
     Equal(Path.Combine(temp.Path, "local", "Claude", "claude_desktop_config.json"), paths.ClaudeDesktopConfig);
     Equal(Path.Combine(temp.Path, "home", ".codex", "config.toml"), paths.CodexConfig);
@@ -163,10 +162,65 @@ static void TestX86ProjectConfiguration()
     Contains("0x014C", verifier);
 }
 
+static void TestJsonFieldTypeTolerance()
+{
+    var value = new JsonObject
+    {
+        ["id"] = "relay-model",
+        ["name"] = 42,
+        ["supports1m"] = 1,
+        ["supports_1m"] = "false"
+    };
+    True(JsonFiles.String(value, "id") == "relay-model");
+    True(JsonFiles.String(value, "name") is null);
+    True(JsonFiles.String(value, "missing") is null);
+    True(JsonFiles.Bool(value, "supports1m"));
+    True(!JsonFiles.Bool(value, "supports_1m"));
+    True(!JsonFiles.Bool(value, "missing"));
+
+    // The same object parsed from text is backed differently; both must behave alike.
+    var parsed = JsonNode.Parse("""{"id":"relay-model","name":42,"supports1m":1,"supports_1m":"false"}""")!.AsObject();
+    True(JsonFiles.String(parsed, "id") == "relay-model");
+    True(JsonFiles.String(parsed, "name") is null);
+    True(JsonFiles.Bool(parsed, "supports1m"));
+    True(!JsonFiles.Bool(parsed, "supports_1m"));
+
+    var catalog = ConnectivityTester.ParseModels(
+        Encoding.UTF8.GetBytes("""{"data":[{"id":"a","supports1m":1},{"id":"b","supports1m":0}]}"""));
+    Equal(2, catalog.Models.Count);
+    True(catalog.OneMillionContextModels.Contains("a"));
+    True(!catalog.OneMillionContextModels.Contains("b"));
+}
+
+static void TestEndpointUriIdempotence()
+{
+    Equal(
+        "https://relay.example.com/v1/responses",
+        ConnectivityTester.EndpointUri(new Uri("https://relay.example.com/v1/responses"), ClientKind.Codex, false).ToString());
+    Equal(
+        "https://relay.example.com/v1/responses",
+        ConnectivityTester.EndpointUri(new Uri("https://relay.example.com/v1"), ClientKind.Codex, false).ToString());
+    Equal(
+        "https://relay.example.com/v1/responses",
+        ConnectivityTester.EndpointUri(new Uri("https://relay.example.com"), ClientKind.Codex, false).ToString());
+    Equal(
+        "https://relay.example.com/v1/chat/completions",
+        ConnectivityTester.EndpointUri(new Uri("https://relay.example.com/v1/chat/completions"), ClientKind.Codex, true).ToString());
+    Equal(
+        "https://relay.example.com/v1/messages",
+        ConnectivityTester.EndpointUri(new Uri("https://relay.example.com/v1/messages"), ClientKind.Claude, false).ToString());
+    Equal(
+        "https://relay.example.com/v1/messages",
+        ConnectivityTester.EndpointUri(new Uri("https://relay.example.com/v1"), ClientKind.Claude, false).ToString());
+}
+
+// codexHome must be passed explicitly: omitting it falls back to the real CODEX_HOME
+// environment variable, and the Codex tests would then rewrite the developer's own config.
 static WindowsRelayMatePaths NewPaths(string root) => new(
     Path.Combine(root, "home"),
     Path.Combine(root, "local"),
-    Path.Combine(root, "support"));
+    Path.Combine(root, "support"),
+    Path.Combine(root, "home", ".codex"));
 
 static string FindRepositoryRoot()
 {
